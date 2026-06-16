@@ -131,238 +131,136 @@ def transform_sample(
         transformed
     )
 
-tab1, tab2, tab3, tab4 = st.tabs([
+tab1, tab2, tab3= st.tabs([
 
-    "🏠 Dashboard",
-    "📂 Dataset",
-    "📊 Hasil Penelitian",
-    "🔮 Prediksi"
-
+    "Dashboard",
+    "Analisis",
+    "Tentang"
 ])
 
 with tab1:
 
-    st.title(
-        "🌿 UVVisPredict"
-    )
+    st.markdown("""
+    <div style='
+        text-align:center;
+        padding-top:120px;
+        padding-bottom:120px;
+    '>
 
-    st.markdown(
-        """
-        Analisis Spektrum UV-Vis
-        Daun Selada Menggunakan
-        Machine Learning
-        """
-    )
+    <h1 style='
+        font-size:90px;
+        color:white;
+        margin-bottom:10px;
+    '>
+    SPECTRA
+    </h1>
 
-    c1,c2,c3 = st.columns(3)
+    <h3 style='
+        color:white;
+        margin-bottom:30px;
+    '>
+    UV-Vis Absorbance Prediction System
+    </h3>
 
-    c1.metric(
-        "Jumlah Sampel",
-        len(df_clean)
-    )
+    <p style='
+        font-size:22px;
+        width:70%;
+        margin:auto;
+        line-height:1.8;
+        color:white;
+    '>
 
-    c2.metric(
-        "Jumlah Wavelength",
-        len(wavelength)
-    )
+    Gunakan data spektral Spektrofotometri UV-Vis,
+    sistem akan bekerja dan memberikan prediksi
+    absorbansi berdasarkan model Machine Learning.
 
-    c3.metric(
-        "Jumlah Model",
-        3
-    )
+    <br><br>
 
-    fig = px.line()
+    Solusi pintar untuk kemajuan teknologi
+    di bidang pertanian.
 
-    for i in range(len(df_clean)):
+    </p>
 
-        sample_name,data = transform_sample(
-            df_clean,
-            i
-        )
+    </div>
+    """, unsafe_allow_html=True)
 
-        fig.add_scatter(
-
-            x=data['Wavelength'],
-
-            y=data['Absorbance'],
-
-            name=sample_name
-
-        )
-
-    st.plotly_chart(
-        fig,
-        use_container_width=True
-    )
 
 with tab2:
 
     st.header(
-        "Dataset Asli"
+        "🔮 Prediksi Absorbansi"
     )
 
-    st.dataframe(df)
+    uploaded_file = st.file_uploader(
 
-    st.header(
-        "Dataset Cleaning"
+        "Upload Dataset UV-Vis",
+
+        type=["xlsx"]
+
+    )
+    if uploaded_file is None:
+
+        st.info(
+            "Silakan upload dataset terlebih dahulu."
+        )
+
+        st.stop()
+
+    uploaded_df = pd.read_excel(
+        uploaded_file
+    )
+    st.write(uploaded_df.columns.tolist())
+
+    st.success(
+        "Dataset berhasil diupload"
     )
 
     st.dataframe(
-        df_clean
+        uploaded_df.head()
     )
 
-    st.header(
-        "Dataset Transformasi"
-    )
-
+    wavelength_cols = [
+        col
+        for col in uploaded_df.columns
+        if isinstance(col,(int,float))
+    ]
     sample = st.selectbox(
 
         "Pilih Sampel",
 
-        df_clean[
-            'Name'
-        ].tolist()
-
+        uploaded_df['Name']
     )
-
-    idx = df_clean[
-        df_clean['Name']
+    idx = uploaded_df[
+        uploaded_df['Name']
         ==
         sample
     ].index[0]
 
-    _, transformed = transform_sample(
-        df_clean,
+    absorbance = uploaded_df.iloc[
         idx
-    )
+    ][wavelength_cols].values
 
-    st.dataframe(
-        transformed
-    )
+    transformed = pd.DataFrame({
 
-with tab3:
+        "Wavelength": wavelength_cols,
 
-    st.header(
-        "Hasil Penelitian"
-    )
-
-    scenario = st.selectbox(
-
-        "Scenario",
-
-        hasil_all[
-            'Scenario'
-        ].unique()
-
-    )
-
-    filtered = hasil_all[
-
-        hasil_all[
-            'Scenario'
-        ]
-        ==
-        scenario
-
-    ]
-
-    st.dataframe(
-        filtered
-    )
-
-    fig = px.bar(
-
-        filtered,
-
-        x='Model',
-
-        y='R2',
-
-        color='Split',
-
-        barmode='group',
-
-        title='Perbandingan R²'
-
-    )
-
-    st.plotly_chart(
-        fig,
-        use_container_width=True
-    )
-
-    fig = px.bar(
-
-        filtered,
-
-        x='Model',
-
-        y='RMSE',
-
-        color='Split',
-
-        barmode='group',
-
-        title='Perbandingan RMSE'
-
-    )
-
-    st.plotly_chart(
-        fig,
-        use_container_width=True
-    )
-
-    st.subheader(
-        "Model Terbaik Skenario 1"
-    )
-
-    st.dataframe(
-        comparison_s1
-    )
-
-    st.subheader(
-        "Model Terbaik Skenario 2"
-    )
-
-    st.dataframe(
-        comparison_s2
-    )
-
-with tab4:
-
-    st.header(
-        "Prediksi Absorbansi"
-    )
-
-    sample = st.selectbox(
-
-        "Sampel",
-
-        df_clean[
-            'Name'
-        ].tolist()
-
-    )
-
+        "Absorbance": absorbance
+    })
+    X = transformed[['Wavelength']]
+    y = transformed['Absorbance']
+    
     model_name = st.selectbox(
-
-        "Model",
-
+        "Pilih Model",
         [
-
             "Linear Regression",
-
             "Polynomial Regression",
-
             "Random Forest"
-
         ]
-
     )
 
     wave_input = st.number_input(
 
-        "Wavelength",
+        "Input Wavelength",
 
         min_value=200,
 
@@ -374,47 +272,28 @@ with tab4:
 
     )
 
-    idx = df_clean[
-        df_clean['Name']
-        ==
-        sample
-    ].index[0]
+    if st.button(
+        "Prediksi"
+    ):
+        X_train, X_test, y_train, y_test = train_test_split(
 
-    _, transformed = transform_sample(
-        df_clean,
-        idx
-    )
+            X,
+            y,
 
-    X = transformed[
-        ['Wavelength']
-    ]
+            test_size=0.2,
 
-    y = transformed[
-        'Absorbance'
-    ]
+            random_state=42
+        )
 
-    X_train, X_test, y_train, y_test = train_test_split(
+        scaler = StandardScaler()
 
-        X,
-        y,
+        X_train_scaled = scaler.fit_transform(
+            X_train
+        )
 
-        test_size=0.2,
-
-        random_state=42,
-
-        shuffle=True
-
-    )
-
-    scaler = StandardScaler()
-
-    X_train_scaled = scaler.fit_transform(
-        X_train
-    )
-
-    X_full_scaled = scaler.transform(
-        X
-    )
+        X_full_scaled = scaler.transform(
+            X
+        )
 
     if model_name == "Linear Regression":
 
@@ -474,23 +353,19 @@ with tab4:
 
     fig = px.line(
 
-        x=wavelength,
+        transformed,
 
-        y=y,
+        x='Wavelength',
 
-        labels={
+        y='Absorbance',
 
-            'x':'Wavelength',
-
-            'y':'Absorbance'
-
-        }
+        title='Spektrum UV-Vis'
 
     )
 
     fig.add_scatter(
 
-        x=wavelength,
+        x=transformed['Wavelength'],
 
         y=pred_full,
 
@@ -515,3 +390,48 @@ with tab4:
         use_container_width=True
     )
 
+with tab3:
+
+    st.header(
+        "ℹ️ Tentang SPECTRA"
+    )
+
+    st.markdown("""
+
+### Spektrofotometri UV-Vis
+
+Spektrofotometri UV-Vis merupakan metode analisis yang digunakan untuk mengukur kemampuan suatu sampel dalam menyerap cahaya pada panjang gelombang tertentu.
+
+---
+
+### Machine Learning yang Digunakan
+
+**Linear Regression**
+
+Model regresi linier untuk memodelkan hubungan panjang gelombang dan absorbansi.
+
+**Polynomial Regression**
+
+Model regresi non-linier yang mampu mengikuti pola spektrum lebih kompleks.
+
+**Random Forest**
+
+Model ensemble berbasis decision tree yang mampu menangani hubungan non-linier.
+
+---
+
+### Dataset
+
+Data spektrum UV-Vis daun selada.
+
+Rentang panjang gelombang:
+
+**200 – 1100 nm**
+
+---
+
+### Tujuan Sistem
+
+Membantu analisis data spektral UV-Vis secara cepat dan interaktif sebagai pendukung pengembangan teknologi pertanian berbasis Machine Learning.
+
+""")
