@@ -3,7 +3,15 @@ import pandas as pd
 import numpy as np
 
 import plotly.express as px
+import plotly.graph_objects as go
 
+import os
+from datetime import datetime
+
+from sklearn.metrics import (
+    r2_score,
+    mean_squared_error
+)
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LinearRegression
@@ -131,10 +139,11 @@ def transform_sample(
         transformed
     )
 
-tab1, tab2, tab3= st.tabs([
+tab1, tab2, tab3, tab4= st.tabs([
 
     "Dashboard",
     "Analisis",
+    "Riwayat",
     "Tentang"
 ])
 
@@ -169,16 +178,12 @@ with tab1:
         line-height:1.8;
         color:white;
     '>
-
     Gunakan data spektral Spektrofotometri UV-Vis,
     sistem akan bekerja dan memberikan prediksi
     absorbansi berdasarkan model Machine Learning.
-
-    <br><br>
-
+    <br>
     Solusi pintar untuk kemajuan teknologi
     di bidang pertanian.
-
     </p>
 
     </div>
@@ -188,9 +193,8 @@ with tab1:
 with tab2:
 
     st.header(
-        "🔮 Prediksi Absorbansi"
+        "Prediksi Nilai Absorbansi"
     )
-
     uploaded_file = st.file_uploader(
 
         "Upload Dataset UV-Vis",
@@ -198,199 +202,585 @@ with tab2:
         type=["xlsx"]
 
     )
-    if uploaded_file is None:
+
+    if uploaded_file is not None:
+
+        uploaded_df = pd.read_excel(
+            uploaded_file
+        )
+        scenario = st.selectbox(
+
+            "Pilih Skenario",
+
+            [
+
+                "Skenario 1",
+
+                "Skenario 2"
+
+            ]
+
+        )
+
+        if scenario == "Skenario 1":
+
+            train_samples = [
+
+                "UV 1264",
+
+                "UV 1265",
+
+                "UV 1266"
+
+            ]
+
+            comparison_sample = "UV 1267"
+
+        else:
+
+            train_samples = [
+
+                "UV 1264",
+
+                "UV 1265",
+
+                "UV 1266",
+
+                "UV 1267"
+
+            ]
+
+            comparison_sample = "UV 1268"
 
         st.info(
-            "Silakan upload dataset terlebih dahulu."
+            f"Data pembanding: {comparison_sample}"
         )
 
-        st.stop()
+        sample = st.selectbox(
 
-    uploaded_df = pd.read_excel(
-        uploaded_file
-    )
-    st.write(uploaded_df.columns.tolist())
+            "Pilih Sampel",
 
-    st.success(
-        "Dataset berhasil diupload"
-    )
+            train_samples
 
-    st.dataframe(
-        uploaded_df.head()
-    )
-
-    wavelength_cols = [
-        col
-        for col in uploaded_df.columns
-        if isinstance(col,(int,float))
-    ]
-    sample = st.selectbox(
-
-        "Pilih Sampel",
-
-        uploaded_df['Name']
-    )
-    idx = uploaded_df[
-        uploaded_df['Name']
-        ==
-        sample
-    ].index[0]
-
-    absorbance = uploaded_df.iloc[
-        idx
-    ][wavelength_cols].values
-
-    transformed = pd.DataFrame({
-
-        "Wavelength": wavelength_cols,
-
-        "Absorbance": absorbance
-    })
-    X = transformed[['Wavelength']]
-    y = transformed['Absorbance']
-    
-    model_name = st.selectbox(
-        "Pilih Model",
-        [
-            "Linear Regression",
-            "Polynomial Regression",
-            "Random Forest"
-        ]
-    )
-
-    wave_input = st.number_input(
-
-        "Input Wavelength",
-
-        min_value=200,
-
-        max_value=1100,
-
-        value=450,
-
-        step=5
-
-    )
-
-    if st.button(
-        "Prediksi"
-    ):
-        X_train, X_test, y_train, y_test = train_test_split(
-
-            X,
-            y,
-
-            test_size=0.2,
-
-            random_state=42
         )
 
-        scaler = StandardScaler()
-
-        X_train_scaled = scaler.fit_transform(
-            X_train
+        model_name = st.selectbox(
+            "Pilih Model",
+            [
+                "Linear Regression",
+                "Polynomial Regression",
+                "Random Forest"
+            ]
         )
 
-        X_full_scaled = scaler.transform(
-            X
+        wave_input = st.number_input(
+            "Input Wavelength (nm)",
+            min_value=200,
+            max_value=1100,
+            value=450,
+            step=5
         )
 
-    if model_name == "Linear Regression":
+        if st.button(
+            "Prediksi"
+        ):
 
-        model = LinearRegression()
+            wavelength_cols = [
 
-    elif model_name == "Polynomial Regression":
+                col
+                for col
+                in uploaded_df.columns
 
-        model = Pipeline([
-
-            (
-                'poly',
-                PolynomialFeatures(
-                    degree=2
+                if isinstance(
+                    col,
+                    (
+                        int,
+                        float
+                    )
                 )
-            ),
 
-            (
-                'linear',
-                LinearRegression()
+            ]
+
+            idx = uploaded_df[
+
+                uploaded_df[
+                    'Name'
+                ]
+                ==
+                sample
+
+            ].index[0]
+
+            absorbance = uploaded_df.iloc[
+                idx
+            ][
+                wavelength_cols
+            ].values
+
+            transformed = pd.DataFrame({
+
+                "Wavelength":
+                wavelength_cols,
+
+                "Absorbance":
+                absorbance
+
+            })
+
+            X = transformed[
+                ['Wavelength']
+            ]
+
+            y = transformed[
+                'Absorbance'
+            ]
+
+            # split terbaik
+            X_train, X_test, y_train, y_test = train_test_split(
+
+                X,
+                y,
+
+                test_size=0.1,
+
+                random_state=42,
+
+                shuffle=True
+
             )
 
-        ])
+            scaler = StandardScaler()
+
+            X_train_scaled = scaler.fit_transform(
+                X_train
+            )
+
+            X_test_scaled = scaler.transform(
+                X_test
+            )
+
+            X_full_scaled = scaler.transform(
+                X
+            )
+
+            # model
+            if model_name == "Linear Regression":
+
+                model = LinearRegression()
+
+            elif model_name == "Polynomial Regression":
+
+                model = Pipeline([
+
+                    (
+                        'poly',
+                        PolynomialFeatures(
+                            degree=2
+                        )
+                    ),
+
+                    (
+                        'linear',
+                        LinearRegression()
+                    )
+
+                ])
+
+            else:
+
+                model = RandomForestRegressor(
+
+                    n_estimators=100,
+
+                    random_state=42
+
+                )
+
+            model.fit(
+
+                X_train_scaled,
+
+                y_train
+
+            )
+
+            wave_scaled = scaler.transform(
+
+                np.array([[
+                    wave_input
+                ]])
+
+            )
+
+            pred_value = model.predict(
+
+                wave_scaled
+
+            )[0]
+
+            st.metric(
+
+                "Prediksi Absorbansi",
+
+                f"{pred_value:.4f}"
+
+            )
+
+            st.subheader(
+                "Interpretasi Hasil Prediksi"
+            )
+
+            if pred_value >= 2:
+
+                st.success(
+                    f"""
+                    Nilai absorbansi sebesar
+                    {pred_value:.4f}
+                    menunjukkan bahwa sampel
+                    memiliki kemampuan
+                    penyerapan cahaya yang tinggi
+                    pada panjang gelombang
+                    {wave_input} nm.
+                    """
+                )
+
+            elif pred_value >= 1:
+
+                st.info(
+                    f"""
+                    Nilai absorbansi sebesar
+                    {pred_value:.4f}
+                    menunjukkan tingkat
+                    penyerapan cahaya sedang
+                    pada panjang gelombang
+                    {wave_input} nm.
+                    """
+                )
+
+            else:
+
+                st.warning(
+                    f"""
+                    Nilai absorbansi sebesar
+                    {pred_value:.4f}
+                    menunjukkan tingkat
+                    penyerapan cahaya yang relatif
+                    rendah pada panjang gelombang
+                    {wave_input} nm.
+                    """
+                )
+
+            # Prediksi sample terpilih
+            pred_full = model.predict(
+                X_full_scaled
+            )
+
+            # ==========================
+            # Data pembanding
+            # ==========================
+
+            idx_comp = uploaded_df[
+
+                uploaded_df['Name']
+                ==
+                comparison_sample
+
+            ].index[0]
+
+            comparison_absorbance = uploaded_df.iloc[
+                idx_comp
+            ][wavelength_cols].values
+
+            comparison_df = pd.DataFrame({
+
+                "Wavelength":
+                wavelength_cols,
+
+                "Absorbance":
+                comparison_absorbance
+
+            })
+
+            # Prediksi model terhadap pembanding
+
+            X_comp = comparison_df[
+                ['Wavelength']
+            ]
+
+            X_comp_scaled = scaler.transform(
+                X_comp
+            )
+
+            pred_compare = model.predict(
+                X_comp_scaled
+            )
+
+            # RMSE pembanding
+
+            rmse_compare = np.sqrt(
+
+                mean_squared_error(
+
+                    comparison_absorbance,
+
+                    pred_compare
+
+                )
+
+            )
+
+            # Korelasi pola
+
+            correlation = np.corrcoef(
+
+                np.array(
+                    comparison_absorbance,
+                    dtype=float
+                ),
+
+                np.array(
+                    pred_compare,
+                    dtype=float
+                )
+
+            )[0,1]
+            
+            col1, col2 = st.columns(2)
+
+            with col1:
+
+                st.metric(
+
+                    "RMSE Pembanding",
+
+                    f"{rmse_compare:.4f}"
+
+                )
+
+            with col2:
+
+                st.metric(
+
+                    "Korelasi Pola",
+
+                    f"{correlation:.4f}"
+
+                )
+
+            fig = go.Figure()
+
+            # Garis aktual (utuh)
+            fig.add_trace(
+                go.Scatter(
+                    x=transformed['Wavelength'],
+                    y=transformed['Absorbance'],
+                    mode='lines',
+                    name='Aktual',
+                    line=dict(
+                        width=3,
+                        dash='solid'
+                    )
+                )
+            )
+
+            # Garis prediksi (putus-putus)
+            fig.add_trace(
+                go.Scatter(
+                    x=transformed['Wavelength'],
+                    y=pred_full,
+                    mode='lines',
+                    name='Prediksi',
+                    line=dict(
+                        width=3,
+                        dash='dash'
+                    )
+                )
+            )
+            fig.add_trace(
+                go.Scatter(
+                    x=transformed['Wavelength'],
+                    y=comparison_absorbance,
+                    mode='lines',
+                    name='Data Pembanding',
+                    line=dict(
+                        dash='dot'
+                    )
+                )
+            )
+
+            fig.add_trace(
+                go.Scatter(
+                    x=comparison_df['Wavelength'],
+                    y=pred_compare,
+                    mode='lines',
+                    name='Prediksi Pembanding',
+                    line=dict(
+                        dash='dashdot'
+                    )
+                )
+            )
+            # Titik input wavelength
+            fig.add_trace(
+                go.Scatter(
+                    x=[wave_input],
+                    y=[pred_value],
+                    mode='markers',
+                    name='Input',
+                    marker=dict(
+                        size=10
+                    )
+                )
+            )
+
+            fig.update_layout(
+                title='Aktual vs Prediksi',
+                xaxis_title='Wavelength (nm)',
+                yaxis_title='Absorbance',
+                legend_title='Keterangan'
+            )
+
+            st.plotly_chart(
+                fig,
+                use_container_width=True
+            )
+
+            st.subheader(
+                "Kesimpulan Perbandingan"
+            )
+
+            if rmse_compare < 0.2 and correlation >= 0.9:
+
+                st.success(
+
+                    f"""
+                    Model menunjukkan kesesuaian pola
+                    yang sangat baik terhadap
+                    data pembanding {comparison_sample}.
+
+                    Nilai RMSE sebesar
+                    {rmse_compare:.4f}
+                    dan korelasi
+                    {correlation:.4f}
+                    menunjukkan bahwa model
+                    mampu mengikuti pola
+                    spektrum UV-Vis dengan baik.
+                    """
+
+                )
+
+            elif correlation >= 0.7:
+
+                st.info(
+
+                    f"""
+                    Model cukup mengikuti pola
+                    data pembanding
+                    {comparison_sample}.
+                    """
+
+                )
+
+            else:
+
+                st.warning(
+
+                    f"""
+                    Model belum mampu mengikuti
+                    pola data pembanding
+                    {comparison_sample}
+                    secara optimal.
+                    """
+
+                )
+            # simpan riwayat
+            history = pd.DataFrame([{
+
+                "Tanggal":
+                datetime.now(),
+
+                "Scenario":
+                scenario,
+
+                "Sample":
+                sample,
+
+                "Model":
+                model_name,
+
+                "Wavelength":
+                wave_input,
+
+                "Prediksi":
+                pred_value
+
+            }])
+
+            if os.path.exists(
+                "history.csv"
+            ):
+
+                old = pd.read_csv(
+                    "history.csv"
+                )
+
+                history = pd.concat(
+
+                    [
+                        old,
+                        history
+                    ],
+
+                    ignore_index=True
+
+                )
+
+            history.to_csv(
+
+                "history.csv",
+
+                index=False
+
+            )
+
+            st.success(
+                "Prediksi berhasil disimpan ke riwayat."
+            )
 
     else:
 
-        model = RandomForestRegressor(
-            n_estimators=100,
-            random_state=42
+        st.info(
+            "Silakan upload dataset UV-Vis."
         )
 
-    model.fit(
-        X_train_scaled,
-        y_train
-    )
-
-    wave_scaled = scaler.transform(
-
-        np.array([[wave_input]])
-
-    )
-
-    pred_value = model.predict(
-        wave_scaled
-    )[0]
-
-    st.metric(
-
-        "Prediksi Absorbansi",
-
-        f"{pred_value:.4f}"
-
-    )
-
-    pred_full = model.predict(
-        X_full_scaled
-    )
-
-    fig = px.line(
-
-        transformed,
-
-        x='Wavelength',
-
-        y='Absorbance',
-
-        title='Spektrum UV-Vis'
-
-    )
-
-    fig.add_scatter(
-
-        x=transformed['Wavelength'],
-
-        y=pred_full,
-
-        name='Prediksi'
-
-    )
-
-    fig.add_scatter(
-
-        x=[wave_input],
-
-        y=[pred_value],
-
-        mode='markers',
-
-        name='Input'
-
-    )
-
-    st.plotly_chart(
-        fig,
-        use_container_width=True
-    )
-
 with tab3:
+
+    st.header(
+        "Riwayat Prediksi"
+    )
+
+    if os.path.exists(
+        "history.csv"
+    ):
+
+        history = pd.read_csv(
+            "history.csv"
+        )
+
+        st.dataframe(
+
+            history,
+
+            use_container_width=True
+
+        )
+
+    else:
+
+        st.info(
+            "Belum ada riwayat prediksi."
+        )
+        
+with tab4:
 
     st.header(
         "ℹ️ Tentang SPECTRA"
