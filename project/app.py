@@ -7,7 +7,6 @@ import plotly.graph_objects as go
 
 import os
 from datetime import datetime
-
 from sklearn.metrics import (
     r2_score,
     mean_squared_error
@@ -18,6 +17,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.ensemble import RandomForestRegressor
+from pathlib import Path
 
 st.set_page_config(
     page_title="UVVisPredict",
@@ -80,17 +80,18 @@ unsafe_allow_html=True)
 
 @st.cache_data
 def load_data():
+    BASE_DIR = Path(__file__).parent
     df = pd.read_excel(
-        "Latihan UV Vis 21 Juli 2022.xlsx"
+        BASE_DIR / "Latihan UV Vis 21 Juli 2022.xlsx"
     )
     hasil_all = pd.read_excel(
-        "hasil_model_uvvis.xlsx"
+        BASE_DIR / "hasil_model_uvvis.xlsx"
     )
     comparison_s1 = pd.read_excel(
-        "comparison_s1.xlsx"
+        BASE_DIR / "comparison_s1.xlsx"
     )
     comparison_s2 = pd.read_excel(
-        "comparison_s2.xlsx"
+        BASE_DIR / "comparison_s2.xlsx"
     )
     return (
         df,
