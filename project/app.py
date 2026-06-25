@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-
+import sqlite3
 import plotly.express as px
 import plotly.graph_objects as go
 
@@ -24,6 +24,36 @@ st.set_page_config(
     page_icon="🌿",
     layout="wide"
 )
+
+# DATABASE
+def init_db():
+
+    conn = sqlite3.connect(
+        "uvvis.db",
+        check_same_thread=False
+    )
+
+    cursor = conn.cursor()
+
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        tanggal TEXT,
+        scenario TEXT,
+        sample TEXT,
+        model TEXT,
+        wavelength REAL,
+        prediksi REAL,
+        rmse REAL,
+        correlation REAL
+    )
+""")
+
+    conn.commit()
+
+    return conn
+
+conn = init_db()
 
 # css
 st.markdown("""
@@ -139,12 +169,12 @@ def transform_sample(
         transformed
     )
 
-tab1, tab2, tab3, tab4= st.tabs([
+tab1, tab2, tab3= st.tabs([
 
     "Dashboard",
     "Analisis",
-    "Riwayat",
-    "Tentang"
+    "Riwayat"
+    # "Tentang"
 ])
 
 with tab1:
@@ -179,8 +209,8 @@ with tab1:
         color:white;
     '>
     Gunakan data spektral Spektrofotometri UV-Vis,
-    sistem akan bekerja dan memberikan prediksi
-    absorbansi berdasarkan model Machine Learning.
+    sistem akan bekerja dan membantu prediksi
+    data absorbansi UV-Vis secara cepat dan interaktif menggunakan model Machine Learning.
     <br>
     Solusi pintar untuk kemajuan teknologi
     di bidang pertanian.
@@ -213,48 +243,53 @@ with tab2:
             "Pilih Skenario",
 
             [
-
+                "Pilih Skenario",
                 "Skenario 1",
-
                 "Skenario 2"
-
             ]
 
         )
+
+        comparison_sample = None
 
         if scenario == "Skenario 1":
 
             train_samples = [
 
+                "Pilih Sampel",
                 "UV 1264",
-
                 "UV 1265",
-
                 "UV 1266"
 
             ]
 
             comparison_sample = "UV 1267"
 
-        else:
+        elif scenario == "Skenario 2":
 
             train_samples = [
 
+                "Pilih Sampel",
                 "UV 1264",
-
                 "UV 1265",
-
                 "UV 1266",
-
                 "UV 1267"
 
             ]
 
             comparison_sample = "UV 1268"
 
-        st.info(
-            f"Data pembanding: {comparison_sample}"
-        )
+        else:
+
+            train_samples = [
+                "Pilih Sampel"
+            ]
+
+        if comparison_sample:
+
+            st.info(
+                f"Data pembanding: {comparison_sample}"
+            )
 
         sample = st.selectbox(
 
@@ -267,6 +302,7 @@ with tab2:
         model_name = st.selectbox(
             "Pilih Model",
             [
+                "Pilih Model",
                 "Linear Regression",
                 "Polynomial Regression",
                 "Random Forest"
@@ -275,16 +311,42 @@ with tab2:
 
         wave_input = st.number_input(
             "Input Wavelength (nm)",
-            min_value=200,
-            max_value=1100,
-            value=450,
+            min_value=0,
+            value=200,
             step=5
         )
 
         if st.button(
             "Prediksi"
         ):
+            if wave_input < 200 or wave_input > 1100:
+                st.error(
+                    "Panjang gelombang harus berada pada rentang 200–1100 nm."
+                )
+                st.stop()
+            if scenario == "Pilih Skenario":
 
+                st.warning(
+                    "Silakan pilih skenario terlebih dahulu."
+                )
+
+                st.stop()
+
+            if sample == "Pilih Sampel":
+
+                st.warning(
+                    "Silakan pilih sampel terlebih dahulu."
+                )
+
+                st.stop()
+
+            if model_name == "Pilih Model":
+
+                st.warning(
+                    "Silakan pilih model terlebih dahulu."
+                )
+
+                st.stop()
             wavelength_cols = [
 
                 col
@@ -693,57 +755,37 @@ with tab2:
 
                 )
             # simpan riwayat
-            history = pd.DataFrame([{
+            cursor = conn.cursor()
 
-                "Tanggal":
-                datetime.now(),
-
-                "Scenario":
+            cursor.execute("""
+                INSERT INTO history
+                (
+                    tanggal,
+                    scenario,
+                    sample,
+                    model,
+                    wavelength,
+                    prediksi,
+                    rmse,
+                    correlation
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                str(datetime.now()),
                 scenario,
-
-                "Sample":
                 sample,
-
-                "Model":
                 model_name,
+                float(wave_input),
+                float(pred_value),
+                float(rmse_compare),
+                float(correlation)
+            ))
 
-                "Wavelength":
-                wave_input,
-
-                "Prediksi":
-                pred_value
-
-            }])
-
-            if os.path.exists(
-                "history.csv"
-            ):
-
-                old = pd.read_csv(
-                    "history.csv"
-                )
-
-                history = pd.concat(
-
-                    [
-                        old,
-                        history
-                    ],
-
-                    ignore_index=True
-
-                )
-
-            history.to_csv(
-
-                "history.csv",
-
-                index=False
-
-            )
+            conn.commit()
 
             st.success(
-                "Prediksi berhasil disimpan ke riwayat."
+                "Prediksi berhasil disimpan ke database."
             )
 
     else:
@@ -758,70 +800,144 @@ with tab3:
         "Riwayat Prediksi"
     )
 
-    if os.path.exists(
-        "history.csv"
-    ):
+    query = """
+    SELECT
+        tanggal,
+        scenario,
+        sample,
+        model,
+        wavelength,
+        prediksi,
+        rmse,
+        correlation
+    FROM history
+    ORDER BY id DESC
+    """
 
-        history = pd.read_csv(
-            "history.csv"
-        )
-
-        st.dataframe(
-
-            history,
-
-            use_container_width=True
-
-        )
-
-    else:
-
-        st.info(
-            "Belum ada riwayat prediksi."
-        )
-        
-with tab4:
-
-    st.header(
-        "ℹ️ Tentang SPECTRA"
+    history = pd.read_sql(
+        query,
+        conn
     )
 
-    st.markdown("""
+    if len(history) > 0:
 
-### Spektrofotometri UV-Vis
+        # st.dataframe(
+        #     history,
+        #     use_container_width=True
+        # )
+        if len(history) > 0:
+            for _, row in history.iterrows():
+                with st.expander(
+                    f"📄 {row['tanggal']} | {row['sample']} | {row['model']}"
+                ):
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.write(
+                            f"**Scenario:** {row['scenario']}"
+                        )
+                        st.write(
+                            f"**Sample:** {row['sample']}"
+                        )
+                        st.write(
+                            f"**Model:** {row['model']}"
+                        )
+                        st.write(
+                            f"**Wavelength:** {row['wavelength']} nm"
+                        )
+                    with col2:
+                        st.write(
+                            f"**Prediksi:** {row['prediksi']:.4f}"
+                        )
+                        st.write(
+                            f"**RMSE:** {row['rmse']:.4f}"
+                        )
+                        st.write(
+                            f"**Korelasi:** {row['correlation']:.4f}"
+                        )
+                        if row['correlation'] >= 0.9:
+                            st.success(
+                                "Kesesuaian pola sangat baik"
+                            )
+                        elif row['correlation'] >= 0.7:
+                            st.info(
+                                "Kesesuaian pola cukup baik"
+                            )
+                        else:
+                            st.warning(
+                                "Kesesuaian pola rendah"
+                            )
+    # else:
 
-Spektrofotometri UV-Vis merupakan metode analisis yang digunakan untuk mengukur kemampuan suatu sampel dalam menyerap cahaya pada panjang gelombang tertentu.
+    #     st.info(
+    #         "Belum ada riwayat prediksi."
+    #     )
+    
+    history = pd.read_sql(
+        query,
+        conn
+    )
 
----
+    # tombol hapus
+    if st.button(
+        "🗑 Hapus Riwayat"
+    ):
 
-### Machine Learning yang Digunakan
+        cursor = conn.cursor()
 
-**Linear Regression**
+        cursor.execute(
+            "DELETE FROM history"
+        )
 
-Model regresi linier untuk memodelkan hubungan panjang gelombang dan absorbansi.
+        conn.commit()
 
-**Polynomial Regression**
+        st.success(
+            "Riwayat berhasil dihapus"
+        )
 
-Model regresi non-linier yang mampu mengikuti pola spektrum lebih kompleks.
+        st.rerun()
 
-**Random Forest**
+# with tab4:
 
-Model ensemble berbasis decision tree yang mampu menangani hubungan non-linier.
+#     st.header(
+#         "ℹ️ Tentang SPECTRA"
+#     )
 
----
+#     st.markdown("""
 
-### Dataset
+# ### Spektrofotometri UV-Vis
 
-Data spektrum UV-Vis daun selada.
+# Spektrofotometri UV-Vis merupakan metode analisis yang digunakan untuk mengukur kemampuan suatu sampel dalam menyerap cahaya pada panjang gelombang tertentu.
 
-Rentang panjang gelombang:
+# ---
 
-**200 – 1100 nm**
+# ### Machine Learning yang Digunakan
 
----
+# **Linear Regression**
 
-### Tujuan Sistem
+# Model regresi linier untuk memodelkan hubungan panjang gelombang dan absorbansi.
 
-Membantu analisis data spektral UV-Vis secara cepat dan interaktif sebagai pendukung pengembangan teknologi pertanian berbasis Machine Learning.
+# **Polynomial Regression**
 
-""")
+# Model regresi non-linier yang mampu mengikuti pola spektrum lebih kompleks.
+
+# **Random Forest**
+
+# Model ensemble berbasis decision tree yang mampu menangani hubungan non-linier.
+
+# ---
+
+# ### Dataset
+
+# Data spektrum UV-Vis daun selada.
+
+# Rentang panjang gelombang:
+
+# **200 – 1100 nm**
+
+# ---
+
+# ### Tujuan Sistem
+
+# Membantu analisis data spektral UV-Vis secara cepat dan interaktif sebagai pendukung pengembangan teknologi pertanian berbasis Machine Learning.
+
+# """)
