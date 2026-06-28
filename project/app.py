@@ -522,74 +522,33 @@ with tab2:
 
             fig = go.Figure()
 
-            # Garis aktual (utuh)
+            # Garis aktual (data pembanding)
             fig.add_trace(
                 go.Scatter(
-                    x=transformed['Wavelength'],
-                    y=transformed['Absorbance'],
-                    mode='lines',
-                    name='Aktual',
-                    line=dict(
-                        width=3,
-                        dash='solid'
-                    )
-                )
-            )
-
-            # Garis prediksi (putus-putus)
-            fig.add_trace(
-                go.Scatter(
-                    x=transformed['Wavelength'],
-                    y=pred_full,
-                    mode='lines',
-                    name='Prediksi',
-                    line=dict(
-                        width=3,
-                        dash='dash'
-                    )
-                )
-            )
-            fig.add_trace(
-                go.Scatter(
-                    x=transformed['Wavelength'],
+                    x=comparison_df["Wavelength"],
                     y=comparison_absorbance,
-                    mode='lines',
-                    name='Data Pembanding',
-                    line=dict(
-                        dash='dot'
-                    )
+                    mode="lines",
+                    name=f"Aktual ({comparison_sample})",
+                    line=dict(width=3)
                 )
             )
 
+            # Garis hasil prediksi
             fig.add_trace(
                 go.Scatter(
-                    x=comparison_df['Wavelength'],
+                    x=comparison_df["Wavelength"],
                     y=pred_compare,
-                    mode='lines',
-                    name='Prediksi Pembanding',
-                    line=dict(
-                        dash='dashdot'
-                    )
-                )
-            )
-            # Titik input wavelength
-            fig.add_trace(
-                go.Scatter(
-                    x=[wave_input],
-                    y=[pred_value],
-                    mode='markers',
-                    name='Input',
-                    marker=dict(
-                        size=10
-                    )
+                    mode="lines",
+                    name=f"Prediksi ({sample} - {model_name})",
+                    line=dict(width=3, dash="dash")
                 )
             )
 
             fig.update_layout(
-                title='Aktual vs Prediksi',
-                xaxis_title='Wavelength (nm)',
-                yaxis_title='Absorbance',
-                legend_title='Keterangan'
+                title="Perbandingan Data Aktual Pembanding dan Hasil Prediksi",
+                xaxis_title="Wavelength (nm)",
+                yaxis_title="Absorbance",
+                legend_title="Keterangan"
             )
 
             st.plotly_chart(
